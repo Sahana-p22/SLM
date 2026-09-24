@@ -1,0 +1,13 @@
+{
+    "alert_type": "MISSING_CLEANING",
+    "inspection_time": 25.4,
+    "required_time": 30,
+    "cloth_detected": false,
+    "objects_present": [
+        "approved_tray",
+        "person",
+        "back_panel",
+        "gloved_hand"
+    ],
+    "workflow_stage": "inspection"
+}

@@ -1,0 +1,5 @@
+ENGLISH:
+Cleaning step appears incomplete. Please clean the panel before inspection.
+
+TAMIL:
+க்ளீனிங் சரியாக செய்யல. இன்ஸ்பெக்ஷனுக்கு முன்னாடி பேனலை சுத்தம் பண்ணுங்க.

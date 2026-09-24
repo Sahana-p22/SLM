@@ -1,0 +1,5 @@
+ENGLISH:
+Inspection workflow appears rushed with duration of 5.8 seconds. Please continue inspection carefully.
+
+TAMIL:
+இன்ஸ்பெக்ஷன் கொஞ்சம் அவசரமா நடக்குது. இன்னும் கொஞ்சம் கவனமா செக் பண்ணுங்க.

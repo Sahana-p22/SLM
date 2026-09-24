@@ -1,0 +1,5 @@
+ENGLISH:
+Direct hand contact detected. Please use microfiber protection.
+
+TAMIL:
+கையால நேரடியாக டச் பண்ணாதீங்க. மைக்ரோஃபைபர் பயன்படுத்துங்க.

@@ -1,0 +1,334 @@
+/* Deliberately committed to a light theme matching the WGDeepInsight brand
+   palette, regardless of OS dark-mode preference — scoped to .fqc-shell so
+   it doesn't affect the chat widget's own light/dark handling. */
+.fqc-shell {
+  --brand-orange: #ed7d22;
+  --brand-blue: #1d5a96;
+  --fqc-bg: #f4f6f9;
+  --fqc-panel: #ffffff;
+  --fqc-border: #e2e6ec;
+  --fqc-text: #5b6472;
+  --fqc-text-h: #1a2130;
+
+  min-height: 100vh;
+  background: var(--fqc-bg);
+  color: var(--fqc-text-h);
+}
+
+/* -------------------- top bar -------------------- */
+
+.fqc-topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 28px;
+  background: var(--fqc-panel);
+  border: 2px solid var(--brand-blue);
+  border-radius: 10px;
+  margin: 16px 28px 0;
+}
+
+.fqc-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fqc-logo-wordmark {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.fqc-logo-tagline {
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--brand-blue);
+  margin-top: 2px;
+}
+
+.fqc-page-title {
+  margin-left: auto;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fqc-text-h);
+  padding: 8px 18px;
+  background: var(--fqc-bg);
+  border-radius: 999px;
+  border: 1px solid var(--fqc-border);
+}
+
+/* -------------------- body -------------------- */
+
+.fqc-body {
+  padding: 20px 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* -------------------- header card -------------------- */
+
+.fqc-header-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: var(--fqc-panel);
+  border: 1px solid var(--fqc-border);
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+
+.fqc-header-left {
+  max-width: 560px;
+}
+
+.fqc-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--brand-blue);
+  background: #eaf2fa;
+  padding: 4px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.fqc-header-left h1 {
+  font-size: 24px;
+  margin: 0 0 8px;
+  color: var(--fqc-text-h);
+}
+
+.fqc-header-left p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--fqc-text);
+  line-height: 1.55;
+}
+
+.fqc-time-window {
+  min-width: 300px;
+  background: var(--fqc-bg);
+  border: 1px solid var(--fqc-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.fqc-time-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fqc-text-h);
+}
+
+.fqc-time-sub {
+  font-size: 11.5px;
+  color: var(--fqc-text);
+  margin-bottom: 10px;
+}
+
+.fqc-preset-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fqc-preset-btn {
+  border: 1px solid var(--fqc-border);
+  background: var(--fqc-panel);
+  color: var(--fqc-text-h);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.fqc-preset-btn.active {
+  background: var(--brand-blue);
+  border-color: var(--brand-blue);
+  color: #fff;
+}
+
+.fqc-custom-range {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.fqc-custom-range label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--fqc-text);
+}
+
+.fqc-custom-range input {
+  border: 1px solid var(--fqc-border);
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  background: var(--fqc-panel);
+  color: var(--fqc-text-h);
+}
+
+/* -------------------- filter row -------------------- */
+
+.fqc-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fqc-filter-row input {
+  border: 1px solid var(--fqc-border);
+  background: var(--fqc-panel);
+  color: var(--fqc-text-h);
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.fqc-updated {
+  font-size: 11.5px;
+  color: var(--fqc-text);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.fqc-error {
+  background: #fdecec;
+  color: #c0392b;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+/* -------------------- stat cards -------------------- */
+
+.fqc-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 1000px) {
+  .fqc-stats-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  .fqc-stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+.fqc-stat-card {
+  background: var(--fqc-panel);
+  border: 1px solid var(--fqc-border);
+  border-top: 3px solid var(--stat-accent, var(--brand-blue));
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.fqc-stat-value {
+  font-size: 26px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--fqc-text-h);
+}
+
+.fqc-stat-label {
+  font-size: 12px;
+  color: var(--fqc-text);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.fqc-stat-hint {
+  font-size: 10.5px;
+  color: var(--fqc-text);
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* -------------------- panel -------------------- */
+
+.fqc-panel {
+  background: var(--fqc-panel);
+  border: 1px solid var(--fqc-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.fqc-panel-head h2 {
+  font-size: 15px;
+  margin: 0 0 3px;
+  color: var(--fqc-text-h);
+}
+
+.fqc-panel-head p {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--fqc-text);
+}
+
+/* -------------------- alert stream table -------------------- */
+
+.fqc-table-wrap {
+  overflow-x: auto;
+}
+
+.fqc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.fqc-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--fqc-text);
+  font-weight: 700;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--fqc-border);
+  white-space: nowrap;
+}
+
+.fqc-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--fqc-border);
+  color: var(--fqc-text-h);
+  vertical-align: top;
+}
+
+.fqc-table tr:last-child td {
+  border-bottom: none;
+}
+
+.fqc-time-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--fqc-text);
+}
+
+.fqc-narration-cell {
+  min-width: 280px;
+}
+
+.fqc-empty {
+  text-align: center;
+  color: var(--fqc-text);
+  padding: 24px 0 !important;
+  font-size: 12.5px;
+}
+
+/* type pills reuse ChatWidget.css color scheme (imported globally) */

@@ -1,0 +1,15 @@
+opencv-python
+numpy
+torch
+torchvision
+pillow
+tqdm
+
+# --- QLoRA fine-tuning (Qwen2.5-3B) ---
+transformers>=4.46.0
+datasets>=2.20.0
+peft>=0.13.0
+trl>=0.11.0
+accelerate>=0.34.0
+bitsandbytes>=0.44.0
+sentencepiece

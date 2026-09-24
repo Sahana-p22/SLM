@@ -1,0 +1,5 @@
+ENGLISH:
+Inspection process finished too fast in 9.7 seconds. Please re-check the panel.
+
+TAMIL:
+இன்ஸ்பெக்ஷன் ரொம்ப சீக்கிரமா முடிஞ்சுருக்கு. பேனலை மறுபடியும் செக் பண்ணுங்க.

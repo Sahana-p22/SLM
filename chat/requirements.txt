@@ -1,0 +1,14 @@
+# --- API + DB ---
+fastapi
+uvicorn[standard]
+pymongo
+python-dotenv
+
+# --- query-parsing LLM (base Qwen2.5-3B, 4-bit) ---
+# The chat backend loads its own copy of the base model for translating
+# questions into query specs — same weights cache as model/, but a separate
+# runtime concern, so these are listed here too rather than assumed shared.
+torch
+transformers>=4.46.0
+accelerate>=0.34.0
+bitsandbytes>=0.44.0

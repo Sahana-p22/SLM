@@ -1,0 +1,5 @@
+ENGLISH:
+Panel inspection completed too quickly in 6.3 seconds. Please inspect properly before approval.
+
+TAMIL:
+பேனல் ரொம்ப சீக்கிரமா செக் பண்ணப்பட்டுருக்கு. அப்புரூவ் பண்ணதுக்கு முன்னாடி நன்றாக செக் பண்ணுங்க.

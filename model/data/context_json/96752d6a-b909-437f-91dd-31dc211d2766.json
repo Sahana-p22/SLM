@@ -1,0 +1,13 @@
+{
+    "alert_type": "HAND_TOUCH",
+    "inspection_time": 19.5,
+    "required_time": 30,
+    "cloth_detected": false,
+    "objects_present": [
+        "approved_tray",
+        "person",
+        "back_panel",
+        "gloved_hand"
+    ],
+    "workflow_stage": "inspection"
+}

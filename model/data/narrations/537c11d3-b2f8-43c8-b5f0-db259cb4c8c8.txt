@@ -1,0 +1,5 @@
+ENGLISH:
+Cleaning confirmation missing before inspection. Please verify panel cleanliness.
+
+TAMIL:
+இன்ஸ்பெக்ஷனுக்கு முன்னாடி க்ளீனிங் சரியா செய்யுங்க.

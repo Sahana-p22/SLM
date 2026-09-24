@@ -1,0 +1,13 @@
+{
+    "alert_type": "FAST_INSPECTION",
+    "inspection_time": 4.4,
+    "required_time": 30,
+    "cloth_detected": true,
+    "objects_present": [
+        "approved_tray",
+        "person",
+        "back_panel",
+        "gloved_hand"
+    ],
+    "workflow_stage": "inspection"
+}

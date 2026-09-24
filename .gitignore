@@ -1,0 +1,32 @@
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# --- large model binaries only (GitHub hard-rejects files over 100MB) ---
+# Base Qwen weights: public HuggingFace download, not project-specific.
+# Merged model: single 5.76GB file, regenerate via hf_training/merge_model.py.
+# The LoRA adapter checkpoint and dataset ARE tracked — they're small and
+# are the actual project-specific artifacts worth version-controlling.
+models/
+model/outputs/industrial_slm/
+
+# --- frontend ---
+chat/frontend/node_modules/
+chat/frontend/dist/
+
+# --- misc ---
+*.log
+.env
+
+# --- generated test artifacts ---
+chat/backend/tests/last_run_report.json
+
+# --- large media (GitHub hard-rejects files over 100MB) ---
+*.mp4
+*.mov
+
+# --- Claude Code session artifacts (not project code) ---
+.claude/
+d--WG-slm-main/

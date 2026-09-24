@@ -1,0 +1,5 @@
+ENGLISH:
+Unsafe panel handling detected. Please follow handling SOP.
+
+TAMIL:
+பேனல் சரியாக ஹேண்டில் பண்ணல. SOP படி ஹேண்டில் பண்ணுங்க.

@@ -1,0 +1,5 @@
+ENGLISH:
+Panel cleaning was not detected. Please complete cleaning process.
+
+TAMIL:
+பேனல் க்ளீனிங் கண்டுபிடிக்கல. முதல்ல க்ளீனிங் முடிச்சுட்டு தொடருங்க.
