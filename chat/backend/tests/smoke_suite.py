@@ -1,9 +1,17 @@
-"""Smoke test over the live 8002 backend: every question must return a
-200, a non-empty answer, and no leaked error text."""
+"""Smoke test over the live approach2 backend (port 8006): every question
+must return a 200, a non-empty answer, and no leaked error text. Ported
+directly from slm-llama3b's smoke_suite.py — this is a pure end-to-end
+sanity check, not tied to Mongo or SQL specifics, so it carries over as-is
+apart from the API base and one question ("how many inspections took over
+30 seconds?") kept even though the original project's own benchmark docs
+flag it as hitting a separate, still-open $div/`$divide`-style bug there —
+worth having here too as an early warning if this port ever regresses onto
+something similar."""
 import json
+import os
 import urllib.request
 
-from bench_config import API_BASE as API
+API = os.environ.get("APPROACH2_API_BASE", "http://127.0.0.1:8006")
 QUESTIONS = [
     "hi",
     "how many alerts today?",
@@ -23,7 +31,7 @@ QUESTIONS = [
     "asdkjhaskdjh",
 ]
 BAD = ("traceback", "planexecutor", "cannot sort", "$elemmatch", "internal server error",
-       "exception", "failed to", "didn't run cleanly")
+      "exception", "failed to", "didn't run cleanly")
 
 fails = []
 for q in QUESTIONS:
@@ -51,5 +59,5 @@ for q in QUESTIONS:
 
 print("\n" + "=" * 60)
 print(f"{len(QUESTIONS) - len(fails)}/{len(QUESTIONS)} smoke questions OK"
-      + ("" if not fails else f"  FAILED: {fails}"))
+     + ("" if not fails else f"  FAILED: {fails}"))
 raise SystemExit(1 if fails else 0)
