@@ -30,4 +30,3 @@ chat/backend/tests/last_run_report.json
 # --- Claude Code session artifacts (not project code) ---
 .claude/
 d--WG-slm-main/
-chat/backend/fqc.db
