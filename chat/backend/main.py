@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from chat.backend.db import get_alerts_collection
-from chat.backend.llm_query import answer_question, answer_question_stream
+from chat.backend.llm_query import ERROR_ANSWER, answer_question, answer_question_stream
 
 app = FastAPI(title="Factory Safety Alert Chatbot API")
 
@@ -52,7 +52,13 @@ def chat(req: ChatRequest):
         history = [h.model_dump() for h in req.history]
         return answer_question(req.question, history)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        # answer_question() already has its own internal safety net and
+        # shouldn't raise at all - this is a last-resort backstop in case
+        # something outside that (model dump validation, etc.) does. Same
+        # principle as everywhere else: never put the raw exception text
+        # in front of the user.
+        print(f"[main] /chat unhandled exception: {exc!r}")
+        raise HTTPException(status_code=500, detail=ERROR_ANSWER)
 
 
 @app.post("/chat/stream")
@@ -74,7 +80,16 @@ def chat_stream(req: ChatRequest):
             for event_type, payload in answer_question_stream(req.question, history):
                 yield f"event: {event_type}\ndata: {json.dumps(payload, default=str)}\n\n"
         except Exception as exc:
-            yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+            # Same principle as llm_query.py's own error handling: the
+            # user sees a plain, friendly message, never the raw
+            # exception text. The frontend surfaces an "error" event by
+            # throwing `payload.error` as the displayed message (see
+            # ChatWidget.jsx), so whatever goes here IS what's shown -
+            # `str(exc)` previously put a technical detail (a stack
+            # trace fragment, a MongoDB error dict, a context-window
+            # overflow message) directly in the chat.
+            print(f"[main] /chat/stream unhandled exception: {exc!r}")
+            yield f"event: error\ndata: {json.dumps({'error': ERROR_ANSWER})}\n\n"
 
     return StreamingResponse(event_source(), media_type="text/event-stream")
 
@@ -91,11 +106,18 @@ async def speech_to_text(audio: UploadFile):
     breaks voice input itself, not the entire backend — chat is the
     primary path and must keep working even if voice can't load.
     """
-    from chat.backend.speech import transcribe
+    from chat.backend.speech import MAX_AUDIO_BYTES, transcribe
+
+    data = await audio.read(MAX_AUDIO_BYTES + 1)
+    if len(data) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Audio file too large (max {MAX_AUDIO_BYTES // (1024 * 1024)}MB).",
+        )
 
     suffix = Path(audio.filename or "audio.webm").suffix or ".webm"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await audio.read())
+        tmp.write(data)
         tmp_path = tmp.name
 
     t0 = time.time()

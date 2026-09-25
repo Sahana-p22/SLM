@@ -1379,6 +1379,53 @@ def _fix_normal_operation_polarity(pipeline: list, question: str) -> list:
     return pipeline
 
 
+_ALERT_TYPE_WORDS_RE = re.compile(
+    r"\b(fast\s*inspection|hand\s*touch|missing\s*cleaning|cleaning|touch|inspection)\b",
+    re.IGNORECASE,
+)
+_SINGLE_TYPE_VALUES = {"FAST_INSPECTION", "HAND_TOUCH", "MISSING_CLEANING"}
+
+
+def _strip_unwanted_type_filter(pipeline: list, question: str) -> list:
+    """Symmetric counterpart to `_needs_type_filter_fix`, which only
+    catches a question that NAMES a type the pipeline fails to filter
+    to. Nothing previously caught the opposite: a pipeline that filters
+    to one specific alert_type while the CURRENT question's own wording
+    gives no reason to — not even loosely ("touch"/"inspection"/
+    "cleaning"). Found live in back-to-back turns: "Average inspection
+    time for fast inspection alerts" followed by a plain "how many
+    alerts yesterday" (answered "67 FAST INSPECTION alerts" - silently
+    dropping two-thirds of the data for a question that named no type
+    at all) and, worse, by "show me the number of alerts for each
+    category" (answered with a single FAST_INSPECTION total instead of
+    a breakdown - collapsing the exact dimension the question asked to
+    see broken out). Unlike date-range inheritance, type continuity was
+    never a designed feature here (there's no `_extract_inherited_type`
+    the way there's an `_extract_inherited_date_range`) - this is the
+    model anchoring on a type it saw earlier in conversation history,
+    not an intentional carryover, so it's always safe to strip: keeps
+    the default `{"$ne": "NORMAL_OPERATION"}` exclusion, only removes a
+    narrowing to one specific real type."""
+    if _ALERT_TYPE_WORDS_RE.search(question):
+        return pipeline
+    for stage in pipeline:
+        if not (isinstance(stage, dict) and isinstance(stage.get("$match"), dict)):
+            continue
+        match = stage["$match"]
+        val = match.get("alert_type")
+        is_single_type = (
+            (isinstance(val, str) and val in _SINGLE_TYPE_VALUES)
+            or (isinstance(val, dict) and isinstance(val.get("$eq"), str) and val["$eq"] in _SINGLE_TYPE_VALUES)
+            or (isinstance(val, dict) and isinstance(val.get("$in"), list)
+                and len(val["$in"]) == 1 and isinstance(val["$in"][0], str)
+                and val["$in"][0] in _SINGLE_TYPE_VALUES)
+        )
+        if is_single_type:
+            print(f"[llm_query] stripped unwanted alert_type filter {val!r} - question named no type")
+            match["alert_type"] = {"$ne": "NORMAL_OPERATION"}
+    return pipeline
+
+
 def _inject_normal_operation_exclusion(pipeline: list, question: str) -> list:
     q = question.lower()
     if "normal operation" in q or "compliant" in q or "normal_operation" in q:
@@ -1431,6 +1478,13 @@ _DATE_RANKING_RE = re.compile(
     re.IGNORECASE,
 )
 
+_DATE_COUNT_SEARCH_RE = re.compile(
+    r"\b(which|what|any)\b(?:\W+\w+){0,3}?\W+\b(day|days|date|dates|week|weeks|month|months)\b"
+    r"(?:\W+\w+){0,8}?\W+\b(get|got|have|had|see|saw|record(?:ed)?|reach(?:ed)?|hit)\b"
+    r"(?:\W+\w+){0,6}?\W+\d+",
+    re.IGNORECASE,
+)
+
 
 def _is_date_dimension_ranking(question: str) -> bool:
     """"Which day/week/month had the most/least X" asks to rank across
@@ -1446,8 +1500,134 @@ def _is_date_dimension_ranking(question: str) -> bool:
     instead of searching across all days. A current question that names
     its own range explicitly (handled separately by
     `_extract_relative_date_range`, e.g. "which day this month...") is
-    unaffected — only the silent history carryover is suppressed here."""
-    return bool(_DATE_RANKING_RE.search(question))
+    unaffected — only the silent history carryover is suppressed here.
+
+    The same collapse happens for a search that isn't a superlative at
+    all but still ranges over every day looking for a specific count —
+    "which day(s) did we get 250 alerts" — matched by
+    `_DATE_COUNT_SEARCH_RE`. Found live: "how many alerts on september
+    19th 2023" (179) followed by "which days did we get 250 alerts"
+    inherited the single Sept-19/20 window, so the search had exactly
+    one day to look at and answered with that day's own unrelated count
+    (179) again, silently restating the previous turn's answer instead
+    of scanning history for a day matching 250. Re-asking the identical
+    follow-up produced the exact same stale answer, confirming this is
+    a deterministic collapse, not a one-off model slip."""
+    return bool(_DATE_RANKING_RE.search(question) or _DATE_COUNT_SEARCH_RE.search(question))
+
+
+def _fix_misclassified_count_target_ranking(pipeline: list, question: str) -> list:
+    """Collapses a $group-by-day -> $sort(count) -> $limit(1) busiest-day
+    shape into a $match on the specific count the question actually named,
+    when the question is a count-target search ("which day(s) did we get
+    N alerts") rather than a genuine superlative ("which day had the most
+    alerts").
+
+    `_is_date_dimension_ranking` (see `_DATE_COUNT_SEARCH_RE` above) stops
+    this question shape from silently inheriting a stale date range from a
+    prior turn. This is the sibling fix for the pipeline SHAPE itself once
+    the range is right: found live, with zero history, "which days did we
+    get 328 alerts" built the exact $group -> $sort{count:-1} -> $limit:1
+    pipeline that's correct for "which day had the most alerts", and used
+    it here regardless of the number 328 in the question - answered "416
+    alerts on 2025-03-21" (the real all-time busiest day) no matter what
+    count was actually asked for. The 3B model has a well-covered example
+    for the superlative shape and none for a specific-count search, so it
+    reaches for the pattern it knows and drops the number on the floor.
+
+    A second, blended shape also seen live after adding a worked example
+    for the count-target case: the model adds the correct $match on the
+    named count AND keeps the $sort/$limit:1 ranking tail out of habit
+    ($group -> $match{count:328} -> $sort{count:-1} -> $limit:1) — harmless
+    when only one day matches, but silently drops every day past the first
+    if more than one matches the same count, and is redundant either way.
+    Strips that leftover tail whether or not this function is the one that
+    added the $match."""
+    if SUPERLATIVE_RE.search(question) or _DATE_RANKING_RE.search(question):
+        return pipeline  # a real superlative question - leave the ranking shape alone
+    if not _DATE_COUNT_SEARCH_RE.search(question):
+        return pipeline
+    numbers = re.findall(r"\d+", question)
+    if not numbers:
+        return pipeline
+    target = int(numbers[-1])
+
+    for i in range(len(pipeline) - 1):
+        group_stage = pipeline[i]
+        if not (isinstance(group_stage, dict) and set(group_stage) == {"$group"}):
+            continue
+        group = group_stage["$group"]
+        accumulators = {k: v for k, v in group.items() if k != "_id"}
+        if len(accumulators) != 1:
+            continue
+        count_field = next(iter(accumulators))
+
+        def _is_exact_match_on_count(stage):
+            if not (isinstance(stage, dict) and set(stage) == {"$match"}):
+                return False
+            cond = stage["$match"].get(count_field)
+            if isinstance(cond, (int, float)):
+                return True
+            return isinstance(cond, dict) and list(cond.keys()) == ["$eq"]
+
+        # The model may have already written its own $match on the target count
+        # (the new worked example teaches this) - skip past it rather than
+        # duplicating it, but still strip any redundant ranking tail after it.
+        cursor = i + 1
+        already_matched = cursor < len(pipeline) and _is_exact_match_on_count(pipeline[cursor])
+        if already_matched:
+            cursor += 1
+
+        # The model has produced both $sort-then-$limit and $limit-then-$sort
+        # for this shape live, so accept either order in the small tail window.
+        tail_end = cursor
+        found_sort = False
+        while tail_end < len(pipeline) and tail_end < cursor + 2:
+            stage = pipeline[tail_end]
+            if isinstance(stage, dict) and set(stage) == {"$sort"} and count_field in stage.get("$sort", {}):
+                found_sort = True
+                tail_end += 1
+                continue
+            if isinstance(stage, dict) and set(stage) == {"$limit"}:
+                tail_end += 1
+                continue
+            break
+        if not found_sort:
+            continue
+
+        replacement = [] if already_matched else [{"$match": {count_field: target}}]
+        print(f"[llm_query] {'stripped a redundant' if already_matched else 'rewrote a'} busiest-day "
+              f"ranking tail{'' if already_matched else ' into a $match'} for the specific count "
+              f"({target}) the question actually asked for")
+        pipeline[cursor if already_matched else i + 1:tail_end] = replacement
+        break
+    return pipeline
+
+
+_ALL_TIME_OVERRIDE_RE = re.compile(
+    r"\b(overall|in total|altogether|all[- ]time|"
+    r"(?:entire|whole|full)\s+(?:data\s*base|dataset|history)|"
+    r"across all (?:time|dates|history)|regardless of (?:date|time)|"
+    r"for the whole database)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_explicit_all_time_question(question: str) -> bool:
+    """A follow-up naming no time phrase of its own inherits the
+    previous turn's date scope by default (see
+    `_extract_inherited_date_range`) — right for a genuine follow-up,
+    but there was previously no way to explicitly ASK for the full,
+    unscoped dataset once a conversation had already narrowed to some
+    period; even a question that clearly means "ignore whatever scope
+    we were just using" still had nothing of its own for
+    `_extract_relative_date_range` to find, so it silently kept
+    inheriting anyway. Words like "overall", "in total", "all-time", or
+    "for the whole database" are exactly that explicit ask — treating
+    them as their own (non-)date phrase, distinct from a plain
+    unscoped question, means they stop inheritance without needing a
+    real date range to point to."""
+    return bool(_ALL_TIME_OVERRIDE_RE.search(question))
 
 
 def _resolve_date_range_with_source(
@@ -1455,19 +1635,23 @@ def _resolve_date_range_with_source(
 ) -> tuple[tuple[datetime, datetime] | None, str | None]:
     """Same resolution as `_resolve_date_range`, but also reports WHERE
     the range came from — "explicit" (the current question named its
-    own time phrase) or "inherited" (carried over silently from the
-    previous turn, see `_extract_inherited_date_range`). Found live: a
-    follow-up like "show me the number of alerts for each category"
-    (no time phrase of its own) after an earlier "how many alerts this
-    quarter" silently inherited the quarter scope and answered with
-    quarter-only counts, with nothing in the answer distinguishing that
-    from an all-time total — the exact same question asked in a fresh
-    chat (no history) returns very different, much larger numbers, with
-    no visible reason why. `_finalize_pipeline` uses this to remember
-    when a range was inherited so the phrased answer can say so."""
+    own time phrase, including an explicit "overall"/"all-time" ask for
+    no scope at all — see `_is_explicit_all_time_question`) or
+    "inherited" (carried over silently from the previous turn, see
+    `_extract_inherited_date_range`). Found live: a follow-up like "show
+    me the number of alerts for each category" (no time phrase of its
+    own) after an earlier "how many alerts this quarter" silently
+    inherited the quarter scope and answered with quarter-only counts,
+    with nothing in the answer distinguishing that from an all-time
+    total — the exact same question asked in a fresh chat (no history)
+    returns very different, much larger numbers, with no visible reason
+    why. `_finalize_pipeline` uses this to remember when a range was
+    inherited so the phrased answer can say so."""
     explicit = _extract_relative_date_range(question, now)
     if explicit:
         return explicit, "explicit"
+    if _is_explicit_all_time_question(question):
+        return None, "explicit"
     if _is_date_dimension_ranking(question):
         return None, None
     inherited = _extract_inherited_date_range(history)
@@ -2565,11 +2749,13 @@ def _finalize_pipeline(parsed: dict, question: str, history: list | None = None)
     pipeline = _ensure_report_facet_sections(pipeline)
     pipeline = _fix_normal_operation_polarity(pipeline, question)
     pipeline = _fix_misclassified_plain_total(pipeline, question)
+    pipeline = _fix_misclassified_count_target_ranking(pipeline, question)
     pipeline = _strip_pregroup_limit(pipeline)
     pipeline = _fix_mixed_inclusion_exclusion_project(pipeline)
     pipeline = _strip_junk_post_facet_stages(pipeline)
     pipeline = _strip_truncating_breakdown_limit(pipeline, question)
     pipeline = _strip_unwanted_date_filter(pipeline, question, history)
+    pipeline = _strip_unwanted_type_filter(pipeline, question)
     pipeline = _inject_normal_operation_exclusion(pipeline, question)
     pipeline = _inject_date_range(pipeline, question, history)
     pipeline = _fix_hour_range_filter(question, pipeline)
@@ -2859,14 +3045,75 @@ def _regenerate_after_error(question: str, failed_pipeline: list, error_msg: str
     question's history and would otherwise keep failing every turn after.
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    user_prompt = (
-        f"Current date: {today}\nQuestion: {question}\n\n"
-        f"This pipeline was generated for that question, but MongoDB rejected it:\n"
-        f"{json.dumps(failed_pipeline, default=str)}\n\n"
-        f"MongoDB error: {error_msg}\n\n"
-        f"Output a corrected pipeline (same JSON schema) that fixes this error and still answers the question."
-    )
-    parsed = _generate_pipeline_json(user_prompt)
+
+    # Some MongoDB errors (found live: a $replaceRoot/$replaceWith stage
+    # failing on a $facet's output) echo the ENTIRE input document back
+    # in the error string itself, independent of how large the failed
+    # PIPELINE's own JSON is — a report's full day-by-day breakdown (90+
+    # rows) landing whole inside "error_msg" alone blew the retry prompt
+    # past the context window even after the fix below stopped
+    # re-sending the failed pipeline. The model only ever needs the
+    # error's own headline (what operator/stage/type mismatch), never
+    # MongoDB's full echoed document, so this is capped unconditionally,
+    # for both branches below.
+    _ERROR_MSG_CHAR_CAP = 300
+    if len(error_msg) > _ERROR_MSG_CHAR_CAP:
+        error_msg = error_msg[:_ERROR_MSG_CHAR_CAP] + "... (truncated)"
+
+    # A report pipeline's $facet has 5+ named sub-pipelines - dumping the
+    # WHOLE failed one back into the retry prompt (on top of the already
+    # large system prompt) was found live to blow straight past the
+    # model's 4096-token context outright ("Requested tokens (6884)
+    # exceed context window of 4096"), an unrecoverable crash rather
+    # than a correctable retry. Just naming which stage type broke is
+    # both smaller and, in practice, a better prompt anyway: a report
+    # this broken is usually faster to regenerate whole than to patch.
+    is_report_pipeline = any(isinstance(s, dict) and "$facet" in s for s in failed_pipeline)
+    if is_report_pipeline:
+        broken_stage = next(
+            (next(iter(s)) for s in failed_pipeline if isinstance(s, dict) and len(s) == 1
+             and next(iter(s)) not in ("$match", "$facet")),
+            "a stage after the $facet",
+        )
+        user_prompt = (
+            f"Current date: {today}\nQuestion: {question}\n\n"
+            f"A report pipeline generated for that question was rejected by MongoDB "
+            f"(error near its {broken_stage!r} stage): {error_msg}\n\n"
+            f"Output a fresh, corrected report pipeline (same JSON schema) for this question — "
+            f"don't try to patch the broken one, just build it again correctly."
+        )
+    else:
+        user_prompt = (
+            f"Current date: {today}\nQuestion: {question}\n\n"
+            f"This pipeline was generated for that question, but MongoDB rejected it:\n"
+            f"{json.dumps(failed_pipeline, default=str)}\n\n"
+            f"MongoDB error: {error_msg}\n\n"
+            f"Output a corrected pipeline (same JSON schema) that fixes this error and still answers the question."
+        )
+    try:
+        parsed = _generate_pipeline_json(user_prompt)
+    except ValueError as e:
+        # Unlike `parse_question_to_pipeline`'s own call to
+        # `_generate_pipeline_json`, this one had no context-window
+        # safety net at all — found live: a report question (a large,
+        # multi-branch $facet pipeline) that needed a self-correction
+        # retry fed the WHOLE failed pipeline's JSON back into the
+        # prompt on top of the already-large system prompt, blowing
+        # past the model's 4096-token context outright ("Requested
+        # tokens (6884) exceed context window of 4096") as a raw,
+        # unhandled ValueError — which propagated all the way up
+        # through FastAPI as a bare 500 with the technical message as
+        # the entire response body, not through any of the friendly
+        # error handling built for every other failure path. Since the
+        # caller (`_resolve_query`) already treats a None return here as
+        # "regeneration didn't produce a usable fix, keep the previous
+        # result" - the exact right behavior for an oversized retry too -
+        # this just needs to not crash instead of trying to recover the
+        # correction.
+        if "exceed context window" in str(e):
+            print(f"[llm_query] self-correction retry prompt overflowed context window ({e}) - giving up on this retry")
+            return None
+        raise
     if parsed is None:
         return None
     return _finalize_pipeline(parsed, question, history)
@@ -4766,6 +5013,35 @@ def _strip_narration(row):
 # =========================================================
 
 def answer_question(question: str, history: list | None = None) -> dict:
+    """Top-level entry point for a single /chat request. Wrapped in a
+    broad try/except as a last-resort safety net: every KNOWN failure
+    mode (a bad pipeline, a Mongo error, a context-window overflow on
+    the main generation path) already degrades gracefully into a
+    friendly ERROR_ANSWER well before this point, but an unanticipated
+    exception anywhere in that chain — a new one of these turns up
+    every time this file gets tested harder — should still never reach
+    the user as a raw stack trace or technical error string (found
+    live: exactly this, from an unguarded model call with no
+    context-window handling at all — see `_regenerate_after_error`,
+    now fixed at the source, but this net stays as insurance against
+    the next one)."""
+    try:
+        return _answer_question_inner(question, history)
+    except Exception as exc:
+        print(f"[llm_query] unhandled exception answering question {question!r}: {exc!r}")
+        return {
+            "question": question,
+            "intent": "error",
+            "pipeline": None,
+            "explanation": None,
+            "result": [],
+            "row_count": 0,
+            "answer": ERROR_ANSWER,
+            "stages": [],
+        }
+
+
+def _answer_question_inner(question: str, history: list | None = None) -> dict:
     parsed, result, stages = _resolve_query(question, history)
 
     t0 = time.time()
