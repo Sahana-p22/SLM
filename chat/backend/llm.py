@@ -26,16 +26,12 @@ def _load_model():
             import torch
             torch_lib = os.path.join(os.path.dirname(torch.__file__), "lib")
             os.add_dll_directory(torch_lib)
-        # n_gpu_layers=0 (CPU-only): the RTX 5070 here is concurrently shared
-        # with two other live deployments (slm-llama3b on 8002, the separate
-        # slm-llama3b-sqlite migration on 8005), which together already hold
-        # essentially all 12GB of VRAM. This experiment must not disturb
-        # either of those, so it runs on CPU instead of contending for GPU
-        # memory. Slower, but functionally identical output — acceptable for
-        # a hallucination/accuracy comparison, where correctness is what's
-        # being measured, not raw latency.
+        # n_gpu_layers=-1 (full GPU offload): the other two GPU deployments
+        # (slm-llama3b on 8002, slm-llama3b-sqlite on 8005) are stopped
+        # while this one runs, per explicit instruction - this GPU can only
+        # hold one loaded model at a time (12GB VRAM total).
         from llama_cpp import Llama
-        _llm = Llama(model_path=GGUF_MODEL_PATH, n_gpu_layers=0, n_ctx=4096, verbose=False)
+        _llm = Llama(model_path=GGUF_MODEL_PATH, n_gpu_layers=-1, n_ctx=4096, verbose=False)
         print("[llm] Model ready.")
 
 

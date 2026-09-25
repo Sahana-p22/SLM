@@ -97,7 +97,14 @@ def _period_label(kind, a, b):
 
 
 def _week_label(year, month, week_num):
-    return f"{datetime(year, month, 1).strftime('%B')} Week {week_num}"
+    # Matches slm-llama3b's own _week_label exactly: includes the day-range
+    # suffix (e.g. "July Week 1 (07/01-07/07)"), clipped to the month's
+    # real last day for a trailing partial week.
+    from calendar import monthrange
+    start_day = (week_num - 1) * 7 + 1
+    end_day = min(start_day + 6, monthrange(year, month)[1])
+    month_name = datetime(year, month, 1).strftime('%B')
+    return f"{month_name} Week {week_num} ({month:02d}/{start_day:02d}-{month:02d}/{end_day:02d})"
 
 
 def _one(sql, params=()):
@@ -203,14 +210,18 @@ def build(question: str, now):
         busiest_month = max(by_month, key=lambda r: r.get("count", 0))
         lines.append(f"Busiest month: {busiest_month['month']} ({busiest_month['count']:,} alerts).")
 
-    facets = {
-        "total_alerts": total_n,
-        "by_type": by_type,
-        "by_month": by_month,
-        "by_week": by_week,
-        "by_day": by_day,
-        "avg_inspection_time": avg_time,
-    }
+    # Matches slm-llama3b's own _restructure_report exactly: only the
+    # sections that apply to this scope are present at all (no empty
+    # by_month/by_week/by_day placeholders for scopes that don't use them).
+    facets = {"total_alerts": total_n, "by_type": by_type}
+    if kind == "week":
+        facets["by_day"] = by_day
+    elif kind == "month":
+        facets["by_week"] = by_week
+    else:
+        facets["by_month"] = by_month
+        facets["by_week"] = by_week
+    facets["avg_inspection_time"] = avg_time
     return {
         "answer": "\n".join(lines),
         "sql": (f"-- report for {label}: total_alerts, by_type, "
