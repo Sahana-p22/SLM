@@ -1,6 +1,6 @@
 # Thin convenience wrapper: runs the regression suite against a backend
 # on port 8001, e.g. a second instance started for comparison. See
-# run_regression_8002.py for why this needs the sys.path insert and the
+# run_regression_8005.py for why this needs the sys.path insert and the
 # env var (not a post-import attribute assignment) to actually work.
 import os
 import sys

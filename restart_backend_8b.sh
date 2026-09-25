@@ -1,6 +1,6 @@
 #!/bin/bash
 set -x
-REPO=/home/wgtech/slm-llama3b
+REPO=/home/wgtech/slm-llama3b-sqlite
 VENV=/home/wgtech/slm-main/.venv
 CU13_LIB=$VENV/lib/python3.12/site-packages/nvidia/cu13/lib
 CU12_WHISPER_LIB=$VENV/lib/python3.12/site-packages/nvidia/cublas/lib:$VENV/lib/python3.12/site-packages/nvidia/cudnn/lib

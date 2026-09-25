@@ -1,5 +1,5 @@
 # Thin convenience wrapper: runs the regression suite against the
-# port-8002 deployment without having to `cd chat/backend/tests` first.
+# port-8005 deployment without having to `cd chat/backend/tests` first.
 #
 # Fixed: this used to do `rs.API_BASE = "..."` AFTER importing
 # chat.backend.tests.regression_suite, which by then had already failed
@@ -13,7 +13,7 @@ import os
 import sys
 
 _TESTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chat", "backend", "tests")
-os.environ.setdefault("FQC_API_BASE", "http://127.0.0.1:8002")
+os.environ.setdefault("FQC_API_BASE", "http://127.0.0.1:8005")
 sys.path.insert(0, _TESTS_DIR)
 
 import chat.backend.tests.regression_suite as rs

@@ -3,7 +3,7 @@
 # slm-llama3b app (slm-main, model swapped Qwen2.5-3B -> Llama-3.2-3B,
 # context window 1024 -> 4096). Reuses slm-main's venv, node_modules, and
 # MongoDB instance (shared, not duplicated) via symlinks / direct paths.
-# Runs on ports 8002 (backend) / 5174 (frontend) so it can coexist with
+# Runs on ports 8005 (backend) / 5176 (frontend) so it can coexist with
 # slm-main (8001 / 5173) if both are ever up at once.
 #
 # NOTE: do not run this while the GPU is in use by someone else — this
@@ -11,7 +11,7 @@
 
 set -u
 
-REPO=/home/wgtech/slm-llama3b
+REPO=/home/wgtech/slm-llama3b-sqlite-sqlite
 VENV=/home/wgtech/slm-main/.venv
 MONGOBIN=/home/wgtech/mongodb-portable/mongodb-linux-x86_64-ubuntu2404-8.0.11/bin
 NODEBIN=/home/wgtech/node-portable/bin
@@ -37,35 +37,35 @@ else
   disown
 fi
 
-if port_open 8002; then
-  echo "[start-all] Backend already running on 8002"
+if port_open 8005; then
+  echo "[start-all] Backend already running on 8005"
 else
   echo "[start-all] Starting backend (Llama-3.2-3B, n_ctx=4096)..."
   (
     cd "$REPO"
     source "$VENV/bin/activate"
     export LD_LIBRARY_PATH="$CU13_LIB:$CU12_WHISPER_LIB:$CUDA_RUNTIME_LIB:${LD_LIBRARY_PATH:-}"
-    setsid nohup uvicorn chat.backend.main:app --host 127.0.0.1 --port 8002       > "$REPO/backend.log" 2>&1 < /dev/null &
+    setsid nohup uvicorn chat.backend.main:app --host 127.0.0.1 --port 8005       > "$REPO/backend.log" 2>&1 < /dev/null &
     disown
   )
 fi
 
-if port_open 5174; then
-  echo "[start-all] Frontend already running on 5174"
+if port_open 5176; then
+  echo "[start-all] Frontend already running on 5176"
 else
   echo "[start-all] Starting frontend..."
   (
     cd "$REPO/chat/frontend"
     export PATH="$NODEBIN:$PATH"
-    setsid nohup npm run dev -- --host 127.0.0.1 --port 5174       > "$REPO/frontend.log" 2>&1 < /dev/null &
+    setsid nohup npm run dev -- --host 127.0.0.1 --port 5176       > "$REPO/frontend.log" 2>&1 < /dev/null &
     disown
   )
 fi
 
 echo "[start-all] Waiting for services to come up..."
 for i in $(seq 1 30); do
-  if port_open 27017 && port_open 8002 && port_open 5174; then
-    echo "[start-all] All up. Dashboard: http://127.0.0.1:5174"
+  if port_open 27017 && port_open 8005 && port_open 5176; then
+    echo "[start-all] All up. Dashboard: http://127.0.0.1:5176"
     exit 0
   fi
   sleep 1
